@@ -1,68 +1,20 @@
-const net = require('net');
+var http = require('http');
+var url = require('url');
+var request = require('request');
 
-const server = net.createServer();
+http.createServer(onRequest).listen(3000);
 
-server.on('connection', (clientToProxySocket) => {
-  console.log('Client Connected To Proxy');
-  // We need only the data once, the starting packet
-  clientToProxySocket.once('data', (data) => {
-    // If you want to see the packet uncomment below
-    // console.log(data.toString());
+function onRequest(req, res) {
 
-    let isTLSConnection = data.toString().indexOf('CONNECT') !== -1;
-
-    // By Default port is 80
-    let serverPort = 80;
-    let serverAddress;
-    if (isTLSConnection) {
-      // Port changed if connection is TLS
-      serverPort = data.toString()
-                          .split('CONNECT ')[1].split(' ')[0].split(':')[1];;
-      serverAddress = data.toString()
-                          .split('CONNECT ')[1].split(' ')[0].split(':')[0];
-    } else {
-      serverAddress = data.toString().split('Host: ')[1].split('\r\n')[0];
+    var queryData = url.parse(req.url, true).query;
+    if (queryData.url) {
+        request({
+            url: queryData.url
+        }).on('error', function(e) {
+            res.end(e);
+        }).pipe(res);
     }
-
-    console.log(serverAddress);
-
-    let proxyToServerSocket = net.createConnection({
-      host: serverAddress,
-      port: serverPort
-    }, () => {
-      console.log('PROXY TO SERVER SET UP');
-      if (isTLSConnection) {
-        clientToProxySocket.write('HTTP/1.1 200 OK\r\n\n');
-      } else {
-        proxyToServerSocket.write(data);
-      }
-
-      clientToProxySocket.pipe(proxyToServerSocket);
-      proxyToServerSocket.pipe(clientToProxySocket);
-
-      proxyToServerSocket.on('error', (err) => {
-        console.log('PROXY TO SERVER ERROR');
-        console.log(err);
-      });
-      
-    });
-    clientToProxySocket.on('error', err => {
-      console.log('CLIENT TO PROXY ERROR');
-      console.log(err);
-    });
-  });
-});
-
-server.on('error', (err) => {
-  console.log('SERVER ERROR');
-  console.log(err);
-  throw err;
-});
-
-server.on('close', () => {
-  console.log('Client Disconnected');
-});
-
-server.listen((process.env.PORT || 5000), () => {
-  console.log('Server runnig at ' + (process.env.PORT || 5000));
-});
+    else {
+        res.end("no url found");
+    }
+}
