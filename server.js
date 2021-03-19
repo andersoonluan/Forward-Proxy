@@ -63,6 +63,6 @@ server.on('close', () => {
   console.log('Client Disconnected');
 });
 
-server.listen(8124, () => {
-  console.log('Server runnig at http://localhost:' + 8124);
+server.listen((process.env.PORT || 5000), () => {
+  console.log('Server runnig at ' + (process.env.PORT || 5000));
 });
